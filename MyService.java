@@ -1,13 +1,65 @@
 package com.example.as;
 import android.accessibilityservice.AccessibilityService;
+import android.accessibilityservice.AccessibilityServiceInfo;
+import android.content.Intent;
+import android.os.Bundle;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.accessibility.AccessibilityEvent;
+import android.view.accessibility.AccessibilityNodeInfo;
 import android.widget.Toast;
+
+import java.util.List;
 
 public class MyService extends AccessibilityService {
     @Override
     public void onAccessibilityEvent(AccessibilityEvent accessibilityEvent) {
+        // 处理可访问性事件
+        if (accessibilityEvent.getEventType() == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+            String packageName = accessibilityEvent.getPackageName().toString();
+            if (packageName.equals("com.google.android.youtube")) {
+                performSearch("Appium");
+            }
+        }
+    }
+
+    @Override
+    protected void onServiceConnected() {
+        super.onServiceConnected();
+        AccessibilityServiceInfo info = new AccessibilityServiceInfo();
+        info.eventTypes = AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED;
+        info.feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC;
+        info.flags = AccessibilityServiceInfo.FLAG_INCLUDE_NOT_IMPORTANT_VIEWS;
+        setServiceInfo(info);
+
+        // 启动YouTube应用程序
+        Intent launchIntent = getPackageManager().getLaunchIntentForPackage("com.google.android.youtube");
+        if (launchIntent != null) {
+            startActivity(launchIntent);
+        }
+    }
+
+    private void performSearch(String query) {
+        AccessibilityNodeInfo rootNode = getRootInActiveWindow();
+        if (rootNode != null) {
+            // 查找搜索框并输入关键字
+            List<AccessibilityNodeInfo> searchBoxes = rootNode.findAccessibilityNodeInfosByViewId("com.google.android.youtube:id/search_box");
+            if (!searchBoxes.isEmpty()) {
+                AccessibilityNodeInfo searchBox = searchBoxes.get(0);
+                searchBox.performAction(AccessibilityNodeInfo.ACTION_FOCUS);
+                Bundle arguments = new Bundle();
+                arguments.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, query);
+                searchBox.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments);
+
+                // 查找并点击搜索按钮
+                List<AccessibilityNodeInfo> searchButtons = rootNode.findAccessibilityNodeInfosByViewId("com.google.android.youtube:id/search_button");
+                if (!searchButtons.isEmpty()) {
+                    searchButtons.get(0).performAction(AccessibilityNodeInfo.ACTION_CLICK);
+                }
+            }
+        } else {
+            Log.e("AccessibilityService", "Root node is null");
+        }
     }
 
     @Override
